@@ -36,13 +36,18 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
                 { fromUserId: loggedInUser._id, status: "accepted" },
                 { toUserId: loggedInUser._id, status: "accepted" }
             ]
-        }).populate("fromUserId", ["firstName", "lastName", "gender", "age"])
+        }).populate("fromUserId", ["firstName", "lastName", "gender", "age"]).populate("toUserId", ["firstName", "lastName", "gender", "age"])
 
         if (!connections) {
             return res.status(404).send("No pending requests")
         }
 
-        const data = connections.map((conn) => conn.fromUserId)
+        const data = connections.map((conn) => {
+            if (conn.fromUserId.toString() === loggedInUser._id.toString()) {
+                return conn.toUserId
+            }
+            return conn.fromUserId
+        })
         res.status(200).json({
             message: "All Connections",
             data: data
