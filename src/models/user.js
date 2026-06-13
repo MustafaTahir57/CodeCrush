@@ -107,7 +107,7 @@ userSchema.index({ email: 1 })  // Indexing email in ascending order it will mak
 userSchema.methods.getJWT = async function () {
     const user = this;
     // Create a JWT Token
-    const token = await jwt.sign({ _id: user._id }, "DEV@Tinder$790", {
+    const token = await jwt.sign({ _id: user._id }, process.env.JWT_KEY, {
         expiresIn: "7d"
     })
 

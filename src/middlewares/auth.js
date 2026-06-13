@@ -10,7 +10,7 @@ const userAuth = async (req, res, next) => {
             return res.status(401).json({ message: "Invalid Session" });
         }
 
-        const decodeObj = jwt.verify(token, "DEV@Tinder$790");
+        const decodeObj = jwt.verify(token, process.env.JWT_KEY);
 
         const { _id } = decodeObj;
         const user = await User.findById(_id);

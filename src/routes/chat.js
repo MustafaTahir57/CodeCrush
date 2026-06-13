@@ -8,7 +8,25 @@ const ConnectionRequest = require("../models/connectionRequest");
 const upload = require("../middlewares/upload");
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
 
-// 1. Open or create a chat with a connection
+// 1. Get all chats for logged in user (inbox)
+chatRouter.get("/chat/list", userAuth, async (req, res) => {
+    try {
+        const loggedInUser = req.user;
+
+        const chats = await Chat.find({
+            participants: { $in: [loggedInUser._id] },
+        })
+            .populate("participants", ["firstName", "lastName", "profilePicture", "headline"])
+            .sort({ updatedAt: -1 });
+
+        res.status(200).json({ message: "Chats fetched", data: chats });
+
+    } catch (err) {
+        res.status(500).json({ message: err.message });
+    }
+});
+
+// 2. Open or create a chat with a connection
 chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
     try {
         const loggedInUser = req.user;
@@ -43,26 +61,6 @@ chatRouter.get("/chat/:targetUserId", userAuth, async (req, res) => {
         res.status(500).json({ message: err.message });
     }
 });
-
-
-// 2. Get all chats for logged in user (inbox)
-chatRouter.get("/chat/list", userAuth, async (req, res) => {
-    try {
-        const loggedInUser = req.user;
-
-        const chats = await Chat.find({
-            participants: { $in: [loggedInUser._id] },
-        })
-            .populate("participants", ["firstName", "lastName", "profilePicture", "headline"])
-            .sort({ updatedAt: -1 });
-
-        res.status(200).json({ message: "Chats fetched", data: chats });
-
-    } catch (err) {
-        res.status(500).json({ message: err.message });
-    }
-});
-
 
 // 3. Get paginated messages for a chat
 chatRouter.get("/chat/:chatId/messages", userAuth, async (req, res) => {

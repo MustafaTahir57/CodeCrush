@@ -9,6 +9,8 @@ const onlineUsers = new Map(); // userId -> Set of socketIds
 
 const ConnectionRequest = require("../models/connectionRequest");
 
+const JWT_KEY = process.env.JWT_KEY
+
 const notifyConnections = async (io, userId, presenceData) => {
     try {
         // Find all accepted connections for this user
@@ -56,7 +58,7 @@ const initSocket = (server) => {
                 return next(new Error("Authentication error: No token"));
             }
 
-            const decoded = jwt.verify(token, "DEV@Tinder$790");
+            const decoded = jwt.verify(token, JWT_KEY);
             const user = await User.findById(decoded._id);
 
             if (!user) {
