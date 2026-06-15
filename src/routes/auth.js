@@ -5,6 +5,9 @@ const jwt = require("jsonwebtoken")
 const crypto = require("crypto");
 const upload = require("../middlewares/upload")
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
+const { Resend } = require('resend');
+
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 const { validateSignUpData } = require("../utils/validation")
 
@@ -148,31 +151,35 @@ authRouter.post("/logout", async (req, res) => {
 
 authRouter.post("/forgetPassword", async (req, res) => {
     const { emailId } = req.body;
-    const user = await User.findOne({ emailId: emailId })
+
+    const user = await User.findOne({ emailId });
     if (!user) {
-        throw new Error("User not found")
+        return res.status(404).json({ message: "User not found" });
     }
-    // will create a test link and send it to the user's email
 
     const resetToken = crypto.randomBytes(32).toString("hex");
     user.resetToken = resetToken;
     user.resetTokenExpiry = Date.now() + 10 * 60 * 1000; // 10 mins
-
-    res.cookie("resetToken", resetToken, {
-        expires: new Date(Date.now() + 10 * 60 * 1000)
-    })
-
     await user.save();
-    // Create reset link
-    const resetLink = `http://localhost:3000/reset-password/${resetToken}`;
-    // TODO: Send email here
-    console.log("Reset Link:", resetLink);
+
+    const resetLink = `https://codecrush-nine.vercel.app/reset-password/${resetToken}`;
+
+    // Send email
+    await resend.emails.send({
+        from: "onboarding@resend.dev",
+        to: user.emailId,
+        subject: "Reset your CodeCrush password",
+        html: `
+            <h2>Password Reset</h2>
+            <p>Click the link below to reset your password. Link expires in 10 minutes.</p>
+            <a href="${resetLink}">Reset Password</a>
+        `,
+    });
 
     res.json({
         message: "Password reset link sent to email",
     });
-
-})
+});
 
 authRouter.post("/reset-password/:token", async (req, res) => {
     try {
@@ -204,7 +211,7 @@ authRouter.post("/reset-password/:token", async (req, res) => {
         await user.save();
 
         res.json({
-            message: "Password reset successful"
+            message: "Password reset successfull"
         });
 
     } catch (err) {
