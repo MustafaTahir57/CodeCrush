@@ -45,11 +45,12 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
         }
 
         const data = connections.map((conn) => {
-            if (conn.fromUserId.toString() === loggedInUser._id.toString()) {
+            if (conn.fromUserId._id.toString() === loggedInUser._id.toString()) {
                 return conn.toUserId
             }
-            return conn.fromUserId
+            return conn.fromUserId._id
         })
+
         res.status(200).json({
             message: "All Connections",
             data: data
