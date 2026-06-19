@@ -15,8 +15,10 @@ const initSocket = require("./config/socket");
 const app = express();
 const server = http.createServer(app);
 
+const allowedOrigins = process.env.WHITE_LIST_URL.split(',');
+
 app.use(cors({
-    origin: process.env.WHITE_LIST_URL,
+    origin: allowedOrigins,
     credentials: true,
 }));
 app.use(express.json());
