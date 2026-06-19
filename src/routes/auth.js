@@ -6,6 +6,8 @@ const crypto = require("crypto");
 const upload = require("../middlewares/upload")
 const uploadToCloudinary = require("../utils/uploadToCloudinary");
 const { Resend } = require('resend');
+const axios = require("axios")
+const getGithubLanguages = require("../utils/getGithubLanguages");
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -137,6 +139,83 @@ authRouter.post("/signIn", async (req, res) => {
     }
 
 })
+
+authRouter.get("/auth/github", (req, res) => {
+    const githubAuthUrl = `https://github.com/login/oauth/authorize?client_id=${process.env.GITHUB_CLIENT_ID}&scope=user:email,repo&redirect_uri=${process.env.GITHUB_CALLBACK_URL}`;
+    res.redirect(githubAuthUrl);
+});
+
+authRouter.get("/auth/github/callback", async (req, res) => {
+    try {
+        const { code } = req.query;
+
+        const tokenRes = await axios.post(
+            "https://github.com/login/oauth/access_token",
+            {
+                client_id: process.env.GITHUB_CLIENT_ID,
+                client_secret: process.env.GITHUB_CLIENT_SECRET,
+                code,
+            },
+            { headers: { Accept: "application/json" } }
+        );
+
+        const accessToken = tokenRes.data.access_token;
+        if (!accessToken) {
+            return res.status(400).json({ message: "GitHub auth failed" });
+        }
+
+        const githubUserRes = await axios.get("https://api.github.com/user", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const githubUser = githubUserRes?.data;
+
+        const emailRes = await axios.get("https://api.github.com/user/emails", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+        });
+        const primaryEmail = emailRes.data.find((e) => e.primary)?.email;
+
+        // NEW: fetch repos + languages
+        const { skillTags, repoCount, languageTotals } = await getGithubLanguages(
+            accessToken,
+            githubUser.login
+        );
+
+        // after getting githubUser, primaryEmail, skillTags, repoCount...
+
+        let user = await User.findOne({ emailId: primaryEmail });
+
+        if (!user) {
+            user = await User.create({
+                emailId: primaryEmail,
+                name: githubUser?.name || githubUser?.login,
+                authProvider: "github",
+                githubId: githubUser?.id.toString(),
+                skills: skillTags,
+                githubStats: {
+                    repoCount,
+                    profileUrl: githubUser.html_url,
+                },
+            });
+        } else {
+            // existing user — refresh skills every login (per your earlier answer)
+            user.skills = skillTags;
+            user.githubStats = {
+                repoCount,
+                profileUrl: githubUser.html_url,
+            };
+            if (!user.githubId) user.githubId = githubUser.id.toString();
+            await user.save();
+        }
+
+        const token = await user.getJWT();
+
+        res.redirect(`https://codecrush-nine.vercel.app/oauth-success?token=${token}`);
+
+    } catch (err) {
+        console.error(err.response?.data || err.message);
+        res.status(500).json({ message: "GitHub OAuth failed" });
+    }
+});
 
 authRouter.post("/logout", async (req, res) => {
 

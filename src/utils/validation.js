@@ -14,11 +14,11 @@ const validateEditProfileData = (req) => {
         "age",
         "gender",
         "skills",
-        "headline",
-        "bio",
-        "location",
-        "role",
-        "socialLinks"
+        // "headline",
+        // "bio",
+        // "location",
+        // "role",
+        // "socialLinks"
     ];
 
     const bodyFields = Object.keys(req.body);

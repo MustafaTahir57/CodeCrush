@@ -14,6 +14,17 @@ const userSchema = new mongoose.Schema({
         trim: true,
     },
 
+    authProvider: {
+        type: String,
+        enum: ["local", "github"],
+        default: "local",
+    },
+
+    githubId: {
+        type: String,
+        default: null,
+    },
+
     emailId: {
         type: String,
         required: true,
@@ -27,8 +38,16 @@ const userSchema = new mongoose.Schema({
         }
     },
 
+    githubStats: {
+        repoCount: { type: Number, default: 0 },
+        profileUrl: { type: String, default: null },
+    },
+
     password: {
         type: String,
+        required: function () {
+            return this.authProvider === "local";
+        },
     },
 
     age: {
