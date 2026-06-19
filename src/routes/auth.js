@@ -180,6 +180,10 @@ authRouter.get("/auth/github/callback", async (req, res) => {
             githubUser.login
         );
 
+        const fullName = githubUser.name || githubUser.login;
+        const [firstName, ...rest] = fullName.trim().split(" ");
+        const lastName = rest.join(" ") || "GitHub"; // fallback if no last name
+
         // after getting githubUser, primaryEmail, skillTags, repoCount...
 
         let user = await User.findOne({ emailId: primaryEmail });
@@ -187,7 +191,8 @@ authRouter.get("/auth/github/callback", async (req, res) => {
         if (!user) {
             user = await User.create({
                 emailId: primaryEmail,
-                name: githubUser?.name || githubUser?.login,
+                firstName,
+                lastName,
                 authProvider: "github",
                 githubId: githubUser?.id.toString(),
                 skills: skillTags,
