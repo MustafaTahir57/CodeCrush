@@ -195,6 +195,7 @@ authRouter.get("/auth/github/callback", async (req, res) => {
                 lastName,
                 authProvider: "github",
                 githubId: githubUser?.id.toString(),
+                profilePicture: githubUser.avatar_url,
                 skills: skillTags,
                 githubStats: {
                     repoCount,
