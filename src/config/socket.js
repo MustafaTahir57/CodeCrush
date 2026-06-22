@@ -221,6 +221,57 @@ const initSocket = (server) => {
             socket.to(`chat:${chatId}`).emit("typing:stop", { chatId, userId });
         });
 
+        // ─── CALL EVENTS ─────────────────────────────────────────
+
+        // Step 1: Caller initiates a call
+        socket.on("call:initiate", ({ chatId, toUserId, callType }) => {
+            // callType = "video" or "audio"
+            io.to(`user:${toUserId}`).emit("call:incoming", {
+                chatId,
+                callType,
+                from: {
+                    _id: socket.user._id,
+                    firstName: socket.user.firstName,
+                    lastName: socket.user.lastName,
+                    profilePicture: socket.user.profilePicture,
+                },
+            });
+            console.log(`Call initiated by ${userId} to ${toUserId}`);
+        });
+
+        // Step 2: Callee accepts the call
+        socket.on("call:accept", ({ chatId, toUserId }) => {
+            io.to(`user:${toUserId}`).emit("call:accepted", { chatId, userId });
+            console.log(`Call accepted by ${userId}`);
+        });
+
+        // Step 3: Callee rejects the call
+        socket.on("call:reject", ({ chatId, toUserId }) => {
+            io.to(`user:${toUserId}`).emit("call:rejected", { chatId, userId });
+            console.log(`Call rejected by ${userId}`);
+        });
+
+        // Step 4: WebRTC offer (caller → callee)
+        socket.on("webrtc:offer", ({ toUserId, offer }) => {
+            io.to(`user:${toUserId}`).emit("webrtc:offer", { offer, fromUserId: userId });
+        });
+
+        // Step 5: WebRTC answer (callee → caller)
+        socket.on("webrtc:answer", ({ toUserId, answer }) => {
+            io.to(`user:${toUserId}`).emit("webrtc:answer", { answer, fromUserId: userId });
+        });
+
+        // Step 6: ICE candidates (both directions)
+        socket.on("webrtc:ice-candidate", ({ toUserId, candidate }) => {
+            io.to(`user:${toUserId}`).emit("webrtc:ice-candidate", { candidate, fromUserId: userId });
+        });
+
+        // Step 7: Hang up
+        socket.on("call:end", ({ toUserId, chatId }) => {
+            io.to(`user:${toUserId}`).emit("call:ended", { chatId, userId });
+            console.log(`Call ended by ${userId}`);
+        });
+
         // Handle disconnect
         socket.on("disconnect", async () => {
             const sockets = onlineUsers.get(userId);
