@@ -48,7 +48,7 @@ userRouter.get("/user/connections", userAuth, async (req, res) => {
             if (conn.fromUserId._id.toString() === loggedInUser._id.toString()) {
                 return conn.toUserId
             }
-            return conn.fromUserId._id
+            return conn.fromUserId
         })
 
         res.status(200).json({
