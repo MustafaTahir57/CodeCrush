@@ -236,6 +236,7 @@ const initSocket = (server) => {
                     profilePicture: socket.user.profilePicture,
                 },
             });
+            console.log("socket user initiating the call", socket.user.firstName)
             console.log(`Call initiated by ${userId} to ${toUserId}`);
         });
 
@@ -254,6 +255,7 @@ const initSocket = (server) => {
         // Step 4: WebRTC offer (caller → callee)
         socket.on("webrtc:offer", ({ toUserId, offer }) => {
             io.to(`user:${toUserId}`).emit("webrtc:offer", { offer, fromUserId: userId });
+            console.log("webrtc:offer")
         });
 
         // Step 5: WebRTC answer (callee → caller)
