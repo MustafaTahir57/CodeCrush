@@ -8,6 +8,10 @@ const uploadToCloudinary = require("../utils/uploadToCloudinary");
 const { Resend } = require('resend');
 const axios = require("axios")
 const getGithubLanguages = require("../utils/getGithubLanguages");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -301,6 +305,32 @@ authRouter.post("/reset-password/:token", async (req, res) => {
 
     } catch (err) {
         res.status(500).send(err.message);
+    }
+});
+
+
+authRouter.post("/generateBio", async (req, res) => {
+    try {
+        const { notes } = req.body;
+
+        if (!notes || !notes.trim()) {
+            return res.status(400).json({ message: "Notes are required" });
+        }
+
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+
+        const prompt = `Turn these rough notes into a polished 2-3 sentence developer bio in a friendly, professional tone. Only return the bio text, nothing else, no quotes, no markdown.
+
+Notes: ${notes}`;
+
+        const result = await model.generateContent(prompt);
+        const bio = result.response.text();
+
+        res.json({ bio: bio.trim() });
+
+    } catch (err) {
+        console.error("Gemini error:", err.message);
+        res.status(500).json({ message: "Failed to generate bio" });
     }
 });
 
