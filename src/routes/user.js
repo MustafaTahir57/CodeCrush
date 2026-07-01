@@ -3,6 +3,8 @@ const userRouter = express.Router();
 const { userAuth } = require("../middlewares/auth")
 const ConnectionRequestModel = require("../models/connectionRequest")
 const User = require("../models/user")
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 userRouter.get("/user/requests/received", userAuth, async (req, res) => {
     try {
@@ -91,7 +93,7 @@ userRouter.get("/user/feed", userAuth, async (req, res) => {
                 { _id: { $nin: Array.from(hideUsers) } },
                 { _id: { $ne: loggedInUser._id } }
             ]
-        }).select("firstName lastName gender age profilePicture , headline , bio").skip(skip)
+        }).select("firstName lastName gender age profilePicture , headline , bio , skills").skip(skip)
             .limit(limit);
 
         res.json({
@@ -104,5 +106,51 @@ userRouter.get("/user/feed", userAuth, async (req, res) => {
     }
 
 })
+
+userRouter.post("/user/ai-summary", userAuth, async (req, res) => {
+    try {
+        const { userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).json({ message: "userId is required" });
+        }
+
+        // RETRIEVE — fetch that user's data from DB
+        const user = await User.findById(userId).select(
+            "firstName lastName skills headline bio role location githubStats"
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: "User not found" });
+        }
+
+        // AUGMENT — build prompt with their real data
+        const prompt = `You are helping developers decide who to connect with on a developer networking platform.
+
+Here is a developer's profile data:
+- Name: ${user.firstName} ${user.lastName}
+- Role: ${user.role ?? "Not specified"}
+- Headline: ${user.headline ?? "Not specified"}
+- Skills: ${user.skills?.join(", ") || "Not specified"}
+- Location: ${user.location ?? "Not specified"}
+- GitHub Repos: ${user.githubStats?.repoCount ?? "Unknown"}
+- Bio: ${user.bio ?? "Not provided"}
+
+Write a 2-3 sentence "Why connect?" summary for this developer in a 
+friendly, professional tone. Focus on what makes them a valuable connection.
+Return only the summary text, no quotes, no markdown, no labels.`;
+
+        // GENERATE
+        const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent(prompt);
+        const summary = result.response.text();
+
+        res.json({ summary: summary.trim() });
+
+    } catch (err) {
+        console.error("AI summary error:", err.message);
+        res.status(500).json({ message: "Failed to generate summary" });
+    }
+});
 
 module.exports = userRouter;

@@ -16,7 +16,21 @@ profileRouter.get("/profile", userAuth, async (req, res) => {
     }
 })
 
-profileRouter.post("/profile/edit", userAuth, upload.single("profilePicture"), async (req, res) => {
+profileRouter.post("/profile/edit", userAuth, (req, res, next) => {
+    upload.single("profilePicture")(req, res, (err) => {
+        if (err) {
+            if (err.code === "LIMIT_FILE_SIZE") {
+                return res.status(400).json({
+                    message: "Image too large. Maximum size is 5MB."
+                });
+            }
+            return res.status(400).json({
+                message: err.message || "File upload failed"
+            });
+        }
+        next();
+    });
+}, async (req, res) => {
     try {
         if (!validateEditProfileData(req)) {
             throw new Error("Invalid Update Fields");
@@ -25,7 +39,6 @@ profileRouter.post("/profile/edit", userAuth, upload.single("profilePicture"), a
 
         if (req.file) {
             const uploadedImage = await uploadToCloudinary(req.file.buffer);
-
             loggedInUser.profilePicture = uploadedImage.secure_url;
         }
 
@@ -50,7 +63,7 @@ profileRouter.post("/profile/edit", userAuth, upload.single("profilePicture"), a
         });
 
     } catch (err) {
-        res.status(400).send("ERROR: " + err.message);
+        res.status(400).json({ message: err.message });
     }
 });
 

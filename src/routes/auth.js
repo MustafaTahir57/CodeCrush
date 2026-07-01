@@ -19,92 +19,106 @@ const { validateSignUpData } = require("../utils/validation")
 
 const authRouter = express.Router();
 
-authRouter.post("/signup", upload.single("profilePicture"),
-    async (req, res) => {
-        try {
-            validateSignUpData(req.body);
-
-            const {
-                firstName,
-                lastName,
-                emailId,
-                password,
-                age,
-                gender,
-                skills,
-                headline,
-                bio,
-                location,
-                role,
-                socialLinks
-            } = req.body;
-
-            // Check existing user
-            const existingUser = await User.findOne({ emailId });
-            if (existingUser) {
-                return res.status(400).json({ message: "User already exists" });
+authRouter.post("/signup", (req, res, next) => {
+    upload.single("profilePicture")(req, res, (err) => {
+        if (err) {
+            if (err.code === "LIMIT_FILE_SIZE") {
+                return res.status(400).json({
+                    message: "Image too large. Maximum size is 5MB."
+                });
             }
-
-            // Hash password
-            const passwordHash = await bcrypt.hash(password, 10);
-
-            // 🔥 Handle profile picture upload (IMPORTANT PART)
-            let profilePictureUrl = "";
-
-            if (req.file) {
-                const uploadedImage = await uploadToCloudinary(req.file.buffer);
-                profilePictureUrl = uploadedImage.secure_url;
-            }
-
-            // Parse JSON fields safely
-            const parsedSkills = skills ? JSON.parse(skills) : [];
-            const parsedSocialLinks = socialLinks ? JSON.parse(socialLinks) : {};
-
-            // Create user
-            const user = new User({
-                firstName,
-                lastName,
-                emailId,
-                password: passwordHash,
-                age,
-                gender,
-                skills: parsedSkills,
-                profilePicture: profilePictureUrl,
-                headline,
-                bio,
-                location,
-                role,
-                socialLinks: parsedSocialLinks
-            });
-
-            await user.save();
-
-            const token = await user.getJWT()
-
-            res.status(201).json({
-                message: "User created successfully",
-                token,
-                user: {
-                    _id: user._id,
-                    firstName: user.firstName,
-                    lastName: user.lastName,
-                    emailId: user.emailId,
-                    profilePicture: user.profilePicture,
-                    headline: user.headline,
-                    bio: user.bio,
-                    location: user.location,
-                    skills: user.skills,
-                    role: user.role
-                }
-            });
-
-        } catch (err) {
-            res.status(400).json({
-                message: "Error saving the user",
-                error: err.message
+            return res.status(400).json({
+                message: err.message || "File upload failed"
             });
         }
+        next();
+    });
+}, async (req, res) => {
+    try {
+        validateSignUpData(req.body);
+
+        const {
+            firstName,
+            lastName,
+            emailId,
+            password,
+            age,
+            gender,
+            skills,
+            headline,
+            bio,
+            location,
+            role,
+            socialLinks
+        } = req.body;
+
+        // Check existing user
+        const existingUser = await User.findOne({ emailId });
+        if (existingUser) {
+            return res.status(400).json({ message: "Email already in use." });
+        }
+
+        // Hash password
+        const passwordHash = await bcrypt.hash(password, 10);
+
+        // 🔥 Handle profile picture upload (IMPORTANT PART)
+        let profilePictureUrl = "";
+
+        if (req.file) {
+            const uploadedImage = await uploadToCloudinary(req.file.buffer);
+            profilePictureUrl = uploadedImage.secure_url;
+        }
+
+        // Parse JSON fields safely
+        const parsedSkills = skills ? JSON.parse(skills) : [];
+        const parsedSocialLinks = socialLinks ? JSON.parse(socialLinks) : {};
+
+        // Create user
+        const user = new User({
+            firstName,
+            lastName,
+            emailId,
+            password: passwordHash,
+            age,
+            gender,
+            skills: parsedSkills,
+            profilePicture: profilePictureUrl,
+            headline,
+            bio,
+            location,
+            role,
+            socialLinks: parsedSocialLinks
+        });
+
+        await user.save();
+
+        const token = await user.getJWT()
+
+        res.status(201).json({
+            message: "User created successfully",
+            token,
+            user: {
+                _id: user._id,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                emailId: user.emailId,
+                profilePicture: user.profilePicture,
+                headline: user.headline,
+                bio: user.bio,
+                location: user.location,
+                skills: user.skills,
+                role: user.role
+            }
+        });
+
+    } catch (err) {
+        console.log("err", err)
+        res.status(400).json({
+            message: "Error creating the user",
+            error: err.message
+        });
     }
+}
 );
 
 authRouter.post("/signIn", async (req, res) => {
