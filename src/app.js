@@ -10,7 +10,7 @@ const profileRouter = require("./routes/profile");
 const requestRouter = require("./routes/request");
 const userRouter = require("./routes/user");
 const chatRouter = require("./routes/chat");
-const initSocket = require("./config/socket");
+const initSocket = require("./socket");
 
 const app = express();
 const server = http.createServer(app);
